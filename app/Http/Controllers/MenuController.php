@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MenuItem;
 use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Support\Collection;
 
 class MenuController extends BaseController
 {
@@ -92,7 +93,52 @@ class MenuController extends BaseController
     ]
      */
 
-    public function getMenuItems() {
-        throw new \Exception('implement in coding task 3');
+    /**
+     * Gets all menu items with their all recursive children
+     *
+     * @return array
+     */
+    public function getMenuItems(): array
+    {
+        $all_menu_items = MenuItem::all();
+        if (!$all_menu_items->isEmpty()) {
+            // go through each menu item and fetch its children recursively
+
+            $all_menu_items->transform(function ($menu_item) use ($all_menu_items) {
+                if(empty($menu_item->parent_id)){
+                    $menu_item->children = $this->recursiveChildren($menu_item, $all_menu_items);
+                }
+                return $menu_item;
+            });
+        }
+
+        // Remove all menu items which are not a root level menu
+        // as they are already in a children tree of their root level menu
+        //return as array as expected by the test
+
+        return $all_menu_items->reject(function ($item){
+            return !empty($item->parent_id);
+        })->toArray();
+    }
+
+    /**
+     * Recursively gets all depth children of a menu item
+     *
+     * @param MenuItem $menu_item
+     * @param Collection $all_menu_items
+     * @return array
+     */
+    private function recursiveChildren(MenuItem $menu_item, Collection $all_menu_items): array
+    {
+        $items = [];
+        foreach($all_menu_items as $local_menu_item){
+            // if sent menu item is the parent of current menu item in loop then get its children
+
+            if($menu_item->id == $local_menu_item->parent_id){
+                $local_menu_item->children = $this->recursiveChildren($local_menu_item, $all_menu_items);
+                $items[] = $local_menu_item;
+            }
+        }
+        return $items;
     }
 }
